@@ -1,4 +1,4 @@
-TODO_plugin_name:
-  plugin_name_enabled:
+discourse_category_access_guide:
+  discourse_category_access_guide_enabled:
     default: false
     client: true

@@ -1,4 +1,4 @@
-# **Plugin Name** Plugin
+# **Discourse Category Access Guide** Plugin
 
 **Plugin Summary**
 
