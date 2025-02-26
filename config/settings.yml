@@ -2,3 +2,9 @@ discourse_category_access_guide:
   discourse_category_access_guide_enabled:
     default: false
     client: true
+
+  category_access_map:
+    client: false
+    default: "{}"
+    type: json_schema
+    description: "JSON mapping of category IDs to post URLs for access requirements."
