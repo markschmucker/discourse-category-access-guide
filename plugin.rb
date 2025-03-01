@@ -4,7 +4,7 @@
 # about: A Discourse plugin that displays category-specific access messages, guiding users on how to gain entry based on predefined access rules.
 # version: 0.1
 # authors: Jahan Gagan
-# url: TODO
+# url: https://github.com/jahan-ggn/discourse-category-access-guide
 
 enabled_site_setting :discourse_category_access_guide_enabled
 
@@ -13,12 +13,12 @@ after_initialize do
     module ::DiscourseCategoryAccessGuide
       class CustomInvalidAccess < StandardError
         attr_reader :custom_message, :custom_message_params
-      
+
         def initialize(msg = nil, opts = {})
           super(msg)
-      
+
           opts ||= {}
-      
+
           @custom_message = opts[:custom_message]
           @custom_message_params = opts[:custom_message_params]
         end
@@ -55,21 +55,19 @@ after_initialize do
         if category_id.present? && category_access_map.key?(category_id.to_s)
           topic_guide_url = category_access_map[category_id.to_s]
           raise ::DiscourseCategoryAccessGuide::CustomInvalidAccess.new(
-            "error_message",
-            custom_message: "error_message",
-            custom_message_params: { url: topic_guide_url }
-          )
+                  "error_message",
+                  custom_message: "error_message",
+                  custom_message_params: {
+                    url: topic_guide_url,
+                  },
+                )
         end
 
         raise Discourse::InvalidAccess
       end
 
-
       def handle_custom_invalid_access(e)
-        opts = {
-          custom_message: e.custom_message,
-          custom_message_params: e.custom_message_params,
-        }
+        opts = { custom_message: e.custom_message, custom_message_params: e.custom_message_params }
         render_custom_not_found_page(403, opts)
       end
 
@@ -87,12 +85,17 @@ after_initialize do
           @hide_search = true
           @page_title = title
           @title = I18n.t(opts[:custom_message], opts[:custom_message_params] || {}).html_safe
-          @current_user = current_user rescue nil
+          @current_user =
+            begin
+              current_user
+            rescue StandardError
+              nil
+            end
 
           render status: status_code,
-                           layout: "no_ember",
-                           formats: [:html],
-                           template: "/exceptions/not_found"
+                 layout: "no_ember",
+                 formats: [:html],
+                 template: "/exceptions/not_found"
         end
       end
     end

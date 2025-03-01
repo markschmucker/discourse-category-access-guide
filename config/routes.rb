@@ -1,8 +1,9 @@
 # frozen_string_literal: true
 
-DiscourseCategoryAccessGuide::Engine.routes.draw do
-  get "/examples" => "examples#index"
-  # define routes here
-end
+# frozen_string_literal: true
 
-Discourse::Application.routes.draw { mount ::DiscourseCategoryAccessGuide::Engine, at: "discourse-category-access-guide" }
+DiscourseCategoryAccessGuide::Engine.routes.draw { get "/examples" => "examples#index" }
+
+Discourse::Application.routes.draw do
+  mount ::DiscourseCategoryAccessGuide::Engine, at: "discourse-category-access-guide"
+end
