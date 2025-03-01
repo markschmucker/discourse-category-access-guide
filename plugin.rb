@@ -40,11 +40,7 @@ after_initialize do
     private
 
     def handle_invalid_access(_e)
-      topic_id = params[:topic_id].to_i
-      raise Discourse::InvalidAccess if topic_id.blank?
-
-      topic = Topic.find_by(id: topic_id)
-      raise Discourse::InvalidAccess if topic.nil?
+      topic = Topic.find_by(id: params[:topic_id].to_i).presence or raise Discourse::InvalidAccess
 
       category_id = topic.category_id
       category_access_map = JSON.parse(SiteSetting.category_access_map || "{}")

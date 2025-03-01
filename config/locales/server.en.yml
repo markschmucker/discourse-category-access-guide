@@ -1,3 +1,6 @@
 en:
-  error_message: "You do not have permission to access this content. To gain access, visit <a href='%{url}'>this page</a>"
+  site_settings:
+    discourse_category_access_guide_enabled: "Enable or disable the category access guide. Disable to hide the guide globally."
+    category_access_map: "JSON mapping of category IDs to URLs describing access requirements."
+  error_message: "You do not have permission to access this content. To gain access, visit <a href='%{url}'>this page</a>."
   access_denied: "Access Denied"
