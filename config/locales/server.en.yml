@@ -2,5 +2,5 @@ en:
   site_settings:
     discourse_category_access_guide_enabled: "Enable or disable the category access guide. Disable to hide the guide globally."
     category_access_map: "JSON mapping of category IDs to URLs describing access requirements."
-  error_message: "You do not have permission to access this content. To gain access, visit <a href='%{url}'>this page</a>."
+  error_message: "You currently do not have permission to access this category. For instructions on how to gain access, please follow this <a href='%{url}'>%{url}</a>."
   access_denied: "Access Denied"
