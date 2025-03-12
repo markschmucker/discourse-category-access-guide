@@ -24,57 +24,19 @@ after_initialize do
     end
   end
 
-  module ::TopicsControllerCAGExtension
-    def self.prepended(base)
-      base.rescue_from ::DiscourseCategoryAccessGuide::CustomInvalidAccess do |e|
-        handle_custom_invalid_access(e)
-      end
-    end
-
-    def show
-      super
-    rescue Discourse::InvalidAccess => e
-      handle_invalid_access(e)
-    end
-
-    private
-
-    def handle_invalid_access(_e)
-      topic = Topic.find_by(id: params[:topic_id].to_i).presence or raise Discourse::InvalidAccess
-
-      category_id = topic.category_id
-      category_access_map = JSON.parse(SiteSetting.category_access_map || "{}")
-
-      if category_id.present? && category_access_map.key?(category_id.to_s)
-        topic_guide_url = category_access_map[category_id.to_s]
-        if SiteSetting.discourse_category_access_guide_enabled
-          raise ::DiscourseCategoryAccessGuide::CustomInvalidAccess.new(
-                  "error_message",
-                  custom_message: "error_message",
-                  custom_message_params: {
-                    url: topic_guide_url,
-                  },
-                )
-        end
-      end
-
-      raise Discourse::InvalidAccess
-    end
-
+  # Helper module to handle custom invalid access across multiple controllers
+  module ::AccessGuideHelper
     def handle_custom_invalid_access(e)
       opts = { custom_message: e.custom_message, custom_message_params: e.custom_message_params }
-      render_custom_not_found_page(403, opts)
+      render_custom_access_guide_page(403, opts)
     end
 
-    def render_custom_not_found_page(status_code, opts = {})
-      opts ||= {}
-
+    def render_custom_access_guide_page(status_code, opts = {})
       show_json_errors = request.format.json? || request.xhr? || params[:format] == "json"
-
       title = I18n.t("access_denied")
 
       if show_json_errors
-        render_json_error(message, type: :custom_invalid_access, status: status_code)
+        render_json_error(title, type: :custom_invalid_access, status: status_code)
       else
         @topics_partial = nil
         @hide_search = true
@@ -95,5 +57,77 @@ after_initialize do
     end
   end
 
+  module ::GuardianCategoryAccessExtension
+    def can_see_category?(category)
+      default_permission = super(category)
+
+      if category.present? && !default_permission &&
+           SiteSetting.discourse_category_access_guide_enabled
+        category_access_map = JSON.parse(SiteSetting.category_access_map || "{}")
+
+        if category_access_map[category.id.to_s].present?
+          raise ::DiscourseCategoryAccessGuide::CustomInvalidAccess.new(
+                  "category_access_error",
+                  custom_message: "error_message",
+                  custom_message_params: {
+                    url: category_access_map[category.id.to_s],
+                  },
+                )
+        end
+      end
+
+      default_permission
+    end
+  end
+
+  Guardian.prepend(GuardianCategoryAccessExtension)
+
+  module ::TopicsControllerCAGExtension
+    include ::AccessGuideHelper
+
+    def self.prepended(base)
+      base.rescue_from ::DiscourseCategoryAccessGuide::CustomInvalidAccess,
+                       with: :handle_custom_invalid_access
+    end
+
+    def show
+      super
+    rescue Discourse::InvalidAccess
+      handle_invalid_access
+    end
+
+    private
+
+    def handle_invalid_access
+      topic = Topic.find_by(id: params[:topic_id].to_i) or raise Discourse::InvalidAccess
+      category_id = topic.category_id
+      category_access_map = JSON.parse(SiteSetting.category_access_map || "{}")
+
+      if category_access_map.key?(category_id.to_s) &&
+           SiteSetting.discourse_category_access_guide_enabled &&
+           category_access_map.key?(category_id.to_s)
+        raise ::DiscourseCategoryAccessGuide::CustomInvalidAccess.new(
+                "error_message",
+                custom_message: "error_message",
+                custom_message_params: {
+                  url: category_access_map[category_id.to_s],
+                },
+              )
+      end
+
+      raise Discourse::InvalidAccess
+    end
+  end
+
+  module ::ListControllerCAGExtension
+    include ::AccessGuideHelper
+
+    def self.prepended(base)
+      base.rescue_from ::DiscourseCategoryAccessGuide::CustomInvalidAccess,
+                       with: :handle_custom_invalid_access
+    end
+  end
+
   ::TopicsController.prepend(TopicsControllerCAGExtension)
+  ::ListController.prepend(ListControllerCAGExtension)
 end
