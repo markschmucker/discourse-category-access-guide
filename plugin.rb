@@ -15,9 +15,6 @@ after_initialize do
 
       def initialize(msg = nil, opts = {})
         super(msg)
-
-        opts ||= {}
-
         @custom_message = opts[:custom_message]
         @custom_message_params = opts[:custom_message_params]
       end
@@ -61,19 +58,36 @@ after_initialize do
     def can_see_category?(category)
       default_permission = super(category)
 
-      if category.present? && !default_permission &&
-           SiteSetting.discourse_category_access_guide_enabled
-        category_access_map = JSON.parse(SiteSetting.category_access_map || "{}")
+      return default_permission if category.blank? || default_permission
+      return default_permission unless SiteSetting.discourse_category_access_guide_enabled
 
-        if category_access_map[category.id.to_s].present?
-          raise ::DiscourseCategoryAccessGuide::CustomInvalidAccess.new(
-                  "category_access_error",
-                  custom_message: "error_message",
-                  custom_message_params: {
-                    url: category_access_map[category.id.to_s],
-                  },
-                )
-        end
+      category_access_map = JSON.parse(SiteSetting.category_access_map || "{}")
+
+      restricted_category_id = nil
+      topic_guide_url = nil
+
+      # Check if the accessed category is restricted
+      if category_access_map[category.id.to_s].present?
+        restricted_category_id = category.id
+        topic_guide_url = category_access_map[category.id.to_s]
+      end
+
+      # Check if its parent category is restricted
+      if category.parent_category_id.present? &&
+           category_access_map[category.parent_category_id.to_s].present?
+        restricted_category_id = category.parent_category_id
+        topic_guide_url = category_access_map[category.parent_category_id.to_s]
+      end
+
+      # If either category or its parent is restricted, deny access
+      if restricted_category_id
+        raise ::DiscourseCategoryAccessGuide::CustomInvalidAccess.new(
+                "category_access_error",
+                custom_message: "error_message",
+                custom_message_params: {
+                  url: topic_guide_url,
+                },
+              )
       end
 
       default_permission
@@ -101,16 +115,33 @@ after_initialize do
     def handle_invalid_access
       topic = Topic.find_by(id: params[:topic_id].to_i) or raise Discourse::InvalidAccess
       category_id = topic.category_id
-      category_access_map = JSON.parse(SiteSetting.category_access_map || "{}")
+      category = Category.find_by(id: category_id)
 
-      if category_access_map.key?(category_id.to_s) &&
-           SiteSetting.discourse_category_access_guide_enabled &&
-           category_access_map.key?(category_id.to_s)
+      category_access_map = JSON.parse(SiteSetting.category_access_map || "{}")
+      puts "F ----> #{category_access_map}"
+      restricted_category_id = nil
+      topic_guide_url = nil
+
+      # Check if the accessed category is restricted
+      if category_access_map[category_id.to_s].present?
+        restricted_category_id = category_id
+        topic_guide_url = category_access_map[category_id.to_s]
+      end
+
+      # Check if its parent category is restricted
+      if category&.parent_category_id.present? &&
+           category_access_map[category.parent_category_id.to_s].present?
+        restricted_category_id = category.parent_category_id
+        topic_guide_url = category_access_map[category.parent_category_id.to_s]
+      end
+
+      # If either category or its parent is restricted, deny access
+      if restricted_category_id
         raise ::DiscourseCategoryAccessGuide::CustomInvalidAccess.new(
-                "error_message",
+                "topic_access_error",
                 custom_message: "error_message",
                 custom_message_params: {
-                  url: category_access_map[category_id.to_s],
+                  url: topic_guide_url,
                 },
               )
       end
